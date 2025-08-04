@@ -1,0 +1,8 @@
+# Core dependencies
+pynput>=1.7.6
+keyboard>=0.13.5
+
+# Optional dependencies for enhanced features
+# Uncomment the following lines for full functionality:
+# pystray>=0.19.0  # System tray integration
+# pillow>=8.0.0    # Icon generation for system tray
