@@ -17,6 +17,7 @@ class InputProcessor:
         self.char_timeout = 1.0  # 1 second timeout for consecutive characters
         self.listener: Optional[Listener] = None
         self.on_text_change: Optional[Callable[[str], None]] = None
+        self._inserting_text = False  # Flag to prevent recursive processing
         
     def start(self):
         """Start listening for keyboard input."""
@@ -42,6 +43,10 @@ class InputProcessor:
     def _on_key_press(self, key):
         """Handle key press events."""
         if not config.is_enabled():
+            return
+            
+        # Skip processing if we're currently inserting text to prevent recursion
+        if self._inserting_text:
             return
             
         # Convert key to character if possible
@@ -110,6 +115,9 @@ class InputProcessor:
     def _replace_text(self, replacement: str):
         """Replace the last two characters with the replacement text."""
         try:
+            # Set flag to prevent recursive processing
+            self._inserting_text = True
+            
             # Send backspace twice to remove the two characters
             controller = Controller()
             controller.press(Key.backspace)
@@ -125,10 +133,16 @@ class InputProcessor:
                 
         except Exception as e:
             print(f"Error replacing text: {e}")
+        finally:
+            # Always clear the flag
+            self._inserting_text = False
     
     def _insert_text(self, text: str):
         """Insert text at current cursor position."""
         try:
+            # Set flag to prevent recursive processing
+            self._inserting_text = True
+            
             controller = Controller()
             controller.type(text)
             
@@ -137,6 +151,9 @@ class InputProcessor:
                 
         except Exception as e:
             print(f"Error inserting text: {e}")
+        finally:
+            # Always clear the flag
+            self._inserting_text = False
 
 
 # Global input processor instance
