@@ -18,6 +18,7 @@ class InputProcessor:
         self.listener: Optional[Listener] = None
         self.on_text_change: Optional[Callable[[str], None]] = None
         self._inserting_text = False  # Flag to prevent recursive processing
+        self._last_completion = None  # Track last completion to prevent infinite loops
         
     def start(self):
         """Start listening for keyboard input."""
@@ -52,15 +53,20 @@ class InputProcessor:
         # Convert key to character if possible
         char = self._key_to_char(key)
         if char is None:
+            # Reset last char for non-character keys to avoid stale state
+            self.last_char = ""
             return
             
         current_time = time.time()
         
-        # Check for punctuation conversion
+        # Check for punctuation conversion first (higher priority)
         if config.is_punctuation_conversion_enabled():
             converted_text = self._check_punctuation_conversion(char, current_time)
             if converted_text:
                 self._replace_text(converted_text)
+                # Reset last char after conversion to prevent further processing
+                self.last_char = ""
+                self.last_char_time = current_time
                 return
         
         # Check for auto-completion
@@ -108,7 +114,18 @@ class InputProcessor:
         auto_complete_pairs = config.get_auto_complete_pairs()
         
         if char in auto_complete_pairs:
-            return auto_complete_pairs[char]
+            completion_char = auto_complete_pairs[char]
+            # Prevent infinite recursion: if the completion is the same as input, 
+            # only complete if we haven't just completed the same character
+            if completion_char == char:
+                # For self-completing characters like quotes, avoid recursion
+                # by checking if we just completed this character
+                if hasattr(self, '_last_completion') and self._last_completion == char:
+                    return None
+                self._last_completion = char
+            else:
+                self._last_completion = None
+            return completion_char
             
         return None
     
@@ -118,12 +135,17 @@ class InputProcessor:
             # Set flag to prevent recursive processing
             self._inserting_text = True
             
+            # Small delay to ensure proper timing
+            time.sleep(0.01)
+            
             # Send backspace twice to remove the two characters
             controller = Controller()
             controller.press(Key.backspace)
             controller.release(Key.backspace)
+            time.sleep(0.01)  # Small delay between operations
             controller.press(Key.backspace)
             controller.release(Key.backspace)
+            time.sleep(0.01)
             
             # Type the replacement character
             controller.type(replacement)
@@ -134,7 +156,8 @@ class InputProcessor:
         except Exception as e:
             print(f"Error replacing text: {e}")
         finally:
-            # Always clear the flag
+            # Always clear the flag with a small delay
+            time.sleep(0.02)
             self._inserting_text = False
     
     def _insert_text(self, text: str):
@@ -143,8 +166,18 @@ class InputProcessor:
             # Set flag to prevent recursive processing
             self._inserting_text = True
             
+            # Small delay to ensure proper timing
+            time.sleep(0.01)
+            
             controller = Controller()
             controller.type(text)
+            
+            # Move cursor back to position between brackets/quotes for better UX
+            # For auto-completion pairs, position cursor in the middle
+            if len(text) == 1:  # Single character completion
+                time.sleep(0.01)  # Small delay before moving cursor
+                controller.press(Key.left)
+                controller.release(Key.left)
             
             if self.on_text_change:
                 self.on_text_change(text)
@@ -152,7 +185,8 @@ class InputProcessor:
         except Exception as e:
             print(f"Error inserting text: {e}")
         finally:
-            # Always clear the flag
+            # Always clear the flag with a small delay
+            time.sleep(0.02)
             self._inserting_text = False
 
 
