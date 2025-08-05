@@ -18,7 +18,7 @@ class InputProcessor:
         self.listener: Optional[Listener] = None
         self.on_text_change: Optional[Callable[[str], None]] = None
         self._inserting_text = False  # Flag to prevent recursive processing
-        self._last_completion = None  # Track last completion to prevent infinite loops
+        self._last_completion_char = None  # Track last completion to prevent infinite loops
         
     def start(self):
         """Start listening for keyboard input."""
@@ -55,6 +55,8 @@ class InputProcessor:
         if char is None:
             # Reset last char for non-character keys to avoid stale state
             self.last_char = ""
+            # Also reset completion state for navigation keys
+            self._last_completion_char = None
             return
             
         current_time = time.time()
@@ -104,9 +106,16 @@ class InputProcessor:
         double_char = self.last_char + char
         punctuation_mapping = config.get_punctuation_mapping()
         
+        # Try exact match first
         if double_char in punctuation_mapping:
             return punctuation_mapping[double_char]
-            
+        
+        # Also try case-insensitive matching if configured
+        if not config.get("case_sensitive", False):
+            for pattern, replacement in punctuation_mapping.items():
+                if pattern.lower() == double_char.lower():
+                    return replacement
+                    
         return None
     
     def _check_auto_completion(self, char: str) -> Optional[str]:
@@ -120,11 +129,13 @@ class InputProcessor:
             if completion_char == char:
                 # For self-completing characters like quotes, avoid recursion
                 # by checking if we just completed this character
-                if hasattr(self, '_last_completion') and self._last_completion == char:
+                if hasattr(self, '_last_completion_char') and self._last_completion_char == char:
+                    # Reset to allow future completions
+                    self._last_completion_char = None
                     return None
-                self._last_completion = char
+                self._last_completion_char = char
             else:
-                self._last_completion = None
+                self._last_completion_char = None
             return completion_char
             
         return None
@@ -170,14 +181,23 @@ class InputProcessor:
             time.sleep(0.01)
             
             controller = Controller()
+            
+            # For better cursor positioning, especially with quotes,
+            # we need to ensure the cursor ends up between the paired characters
             controller.type(text)
             
             # Move cursor back to position between brackets/quotes for better UX
             # For auto-completion pairs, position cursor in the middle
             if len(text) == 1:  # Single character completion
                 time.sleep(0.01)  # Small delay before moving cursor
-                controller.press(Key.left)
-                controller.release(Key.left)
+                # Use precise cursor movement to avoid selection issues
+                # Ensure no modifier keys are held when moving cursor
+                try:
+                    controller.press(Key.left)
+                    controller.release(Key.left)
+                except:
+                    # Fallback in case of key press issues
+                    pass
             
             if self.on_text_change:
                 self.on_text_change(text)

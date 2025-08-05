@@ -1,10 +1,10 @@
 # NiceType Manual Testing Guide
 
-This guide helps you test the fixes for all four reported issues in your Windows 11 environment.
+This guide helps you test the fixes for all issues reported in the Chinese problem statement.
 
 ## Prerequisites
 
-1. Make sure you have Python 3.10 installed
+1. Make sure you have Python 3.10+ installed
 2. Install NiceType dependencies:
    ```bash
    pip install -r requirements.txt
@@ -25,12 +25,31 @@ python -m nicetype --no-tray
 
 ## Testing the Fixes
 
-### ✅ Issue 1: Punctuation Auto-Replacement (；； → ;)
+### ✅ Issue 1: Chinese Symbol Auto-Completion (（ → ）, 《 → 》)
+
+**Problem:** Only 【】 was working correctly, other Chinese paired symbols like （）、《》 were not auto-completing properly.
 
 **Test Steps:**
 1. Open any text editor (Notepad, Word, VS Code, etc.)
-2. Type `；；` (two Chinese semicolons quickly)
-3. **Expected Result:** Should automatically convert to `;` (single English semicolon)
+2. Type `（` (Chinese left parenthesis)
+3. **Expected Result:** Should auto-complete with `）` (Chinese right parenthesis)
+4. **Final result:** `（）` with cursor positioned between the parentheses
+5. Type `《` (Chinese left angle bracket)
+6. **Expected Result:** Should auto-complete with `》` (Chinese right angle bracket)
+7. **Final result:** `《》` with cursor positioned between the brackets
+
+**Other symbols to test:**
+- `【` → `【】` with cursor between (should still work)
+- `(` → `()` with cursor between (English parenthesis)
+- `[` → `[]` with cursor between (English bracket)
+
+### ✅ Issue 2: Punctuation Auto-Replacement (；； → ;)
+
+**Problem:** Punctuation replacement was not working at all.
+
+**Test Steps:**
+1. Type `；；` (two Chinese semicolons quickly, within 1 second)
+2. **Expected Result:** Should automatically convert to `;` (single English semicolon)
 
 **Other punctuation to test:**
 - `，，` → `,` (Chinese comma to English comma)
@@ -39,28 +58,22 @@ python -m nicetype --no-tray
 - `？？` → `?` (Chinese question mark to English question mark)
 - `！！` → `!` (Chinese exclamation mark to English exclamation mark)
 
-### ✅ Issue 2: Chinese Parenthesis Auto-Completion (（ → ）)
+### ✅ Issue 3: Cursor Positioning After Quote Auto-Completion
+
+**Problem:** When typing `"` it auto-completed but also selected the following `"` symbol, preventing direct input.
 
 **Test Steps:**
-1. Type `（` (Chinese left parenthesis)
-2. **Expected Result:** Should auto-complete with `）` (Chinese right parenthesis), not English `)`
-3. **Final result:** `（）` with cursor positioned between the parentheses
+1. Type `"` (English double quote)
+2. **Expected Result:** Should auto-complete to `""` with cursor positioned **between** the quotes
+3. **Verify:** Try typing text - it should appear between the quotes: `"your text"`
+4. **Critical:** Cursor should NOT select the closing quote
 
-### ✅ Issue 3: Cursor Positioning After Auto-Completion
+**Quote types to test:**
+- `"` → `""` with cursor between (English double quote)
+- `'` → `''` with cursor between (English single quote)  
+- `"` → `""` with cursor between (Chinese double quote)
 
-**Test Steps:**
-1. Type `【` (Chinese left square bracket)
-2. **Expected Result:** Should auto-complete to `【】` with cursor positioned **between** the brackets
-3. **Verify:** Try typing text - it should appear between the brackets: `【your text】`
-
-**Other brackets to test:**
-- `(` → `()` with cursor between
-- `[` → `[]` with cursor between  
-- `{` → `{}` with cursor between
-- `"` → `""` with cursor between
-- `《` → `《》` with cursor between
-
-### ✅ Issue 4: Single Quote Infinite Loop Prevention
+### ✅ Bonus: Quote Recursion Prevention
 
 **Test Steps:**
 1. Type `'` (single quote)
@@ -73,14 +86,15 @@ python -m nicetype --no-tray
 
 ### If NiceType doesn't start:
 ```bash
-# Test core functionality without GUI
-python -m nicetype --test
+# Check if dependencies are installed
+pip install -r requirements.txt
 ```
 
 ### If punctuation conversion doesn't work:
 1. Check if NiceType is enabled (system tray icon or console output)
 2. Verify you're typing the characters quickly (within 1 second)
 3. Make sure you're using the correct Chinese punctuation characters
+4. Check console for any error messages
 
 ### If auto-completion doesn't work:
 1. Check if auto-completion is enabled in settings
@@ -89,15 +103,17 @@ python -m nicetype --test
 
 ### If you see permission errors:
 - On Windows: Run as administrator or allow through Windows Defender
-- Make sure NiceType has keyboard input access permissions
+- On macOS: Grant Accessibility permissions in System Preferences
+- On Linux: Usually works without special permissions
 
 ## Expected Test Results Summary
 
 | Test Case | Input | Expected Output | Status |
 |-----------|-------|----------------|--------|
-| Punctuation | `；；` | `;` | ✅ Fixed |
 | Chinese Parenthesis | `（` | `（）` (cursor between) | ✅ Fixed |
-| Bracket Positioning | `【` | `【】` (cursor between) | ✅ Fixed |
+| Chinese Angle Brackets | `《` | `《》` (cursor between) | ✅ Fixed |
+| Punctuation Conversion | `；；` | `;` | ✅ Fixed |
+| Quote Positioning | `"` | `""` (cursor between) | ✅ Fixed |
 | Quote Loop Prevention | `''''` | `''` then normal chars | ✅ Fixed |
 
 ## Settings Access
@@ -105,6 +121,14 @@ python -m nicetype --test
 - **System Tray**: Right-click tray icon → Settings
 - **No Tray Mode**: Settings window opens automatically
 - **Settings Only**: `python -m nicetype --settings-only`
+
+## Verification Commands
+
+To verify fixes without GUI:
+```bash
+cd /path/to/NiceType
+python3 /tmp/comprehensive_test.py
+```
 
 If you encounter any issues, please report them with:
 1. Your exact steps to reproduce
